@@ -13,10 +13,10 @@ bot = telebot.TeleBot(TOKEN, parse_mode="Markdown")
 
 def extrair_menor_preco(texto):
     """
-    Procura valores do tipo R$ 933, R$1.250, etc
+    Extrai valores monetários do tipo R$ 933, R$1.250 etc
     e retorna o menor encontrado
     """
-    valores = re.findall(r"R\$\s?[\d\.]+", texto)
+    valores = re.findall(r"R\$\s?\d[\d\.]*", texto)
     precos = []
 
     for v in valores:
@@ -31,36 +31,50 @@ def extrair_menor_preco(texto):
 def start(msg):
     bot.send_message(
         msg.chat.id,
-        "🤖 *Bot de voos ativo*\n\nUse /teste para buscar o menor preço REC ➜ FOR"
+        "🤖 *Bot de Voos Ativo*\n\nUse /teste para buscar um voo real com data definida."
     )
 
 
 @bot.message_handler(commands=["teste"])
 def teste(msg):
-    bot.send_message(msg.chat.id, "🔎 Buscando menor preço no Google Flights...")
+    bot.send_message(msg.chat.id, "🔎 Buscando menor preço com data definida...")
+
+    # EXEMPLO FIXO (REC ➜ FOR)
+    origem = "rec"
+    destino = "for"
+    ida = "260128"     # 28/01/2026
+    volta = "260131"   # 31/01/2026
+
+    url = (
+        f"https://www.google.com/travel/flights/"
+        f"search?tfs=CBwQAhokEgoyMDI2LTAxLTI4agcIARIDUkVD"
+        f"cgcIARIDRk9SGhQKAiABEgoyMDI2LTAxLTMxagcIARIDRk9S"
+        f"cgcIARIDUkVDEAFAAUgBmAEC"
+    )
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
-        url = (
-            "https://www.google.com/travel/flights?"
-            "q=Flights%20from%20REC%20to%20FOR"
-        )
-
         page.goto(url)
-        page.wait_for_timeout(12000)
+        page.wait_for_timeout(15000)
 
-        texto_pagina = page.inner_text("body")
+        texto = page.inner_text("body")
 
         browser.close()
 
-    menor_preco = extrair_menor_preco(texto_pagina)
+    menor_preco = extrair_menor_preco(texto)
 
     if menor_preco:
         bot.send_message(
             msg.chat.id,
             f"""🏷️ *Voo mais barato encontrado*
+
+🛫 *Origem:* Recife (REC)
+🛬 *Destino:* Fortaleza (FOR)
+
+📆 *Ida:* 28/01/2026
+📆 *Volta:* 31/01/2026
 
 💰 *Preço:* ~R$ {menor_preco}
 
@@ -71,7 +85,7 @@ def teste(msg):
     else:
         bot.send_message(
             msg.chat.id,
-            "❌ Não consegui localizar preços no momento."
+            "❌ Não consegui localizar preços para esse filtro."
         )
 
 
